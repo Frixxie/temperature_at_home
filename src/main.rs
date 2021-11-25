@@ -5,16 +5,15 @@ use serde_json;
 use std::path::PathBuf;
 
 #[derive(Deserialize)]
-struct Station {
+struct Collector {
     room: String,
     url: String,
 }
 
-impl Station {
-    fn from_json(json: &PathBuf) -> Self {
+impl Collector {
+    fn from_json(json: &PathBuf) -> Vec<Self> {
         let file = std::fs::read_to_string(json).unwrap();
-        let station: Station = serde_json::from_str(&file).unwrap();
-        station
+        serde_json::from_str(&file).unwrap()
     }
 }
 
@@ -36,7 +35,10 @@ impl Temperature {
 }
 
 #[get("/")]
-async fn get_temp(client: web::Data<Client>, stations: web::Data<Vec<Station>>) -> impl Responder {
+async fn get_temp(
+    client: web::Data<Client>,
+    stations: web::Data<Vec<Collector>>,
+) -> impl Responder {
     let mut res: Vec<Temperature> = Vec::new();
     for station in stations.iter() {
         let resp: serde_json::Value = client
@@ -62,10 +64,9 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .service(get_temp)
             .app_data(web::Data::new(Client::new()))
-            .app_data(web::Data::new(vec![
-                Station::from_json(&PathBuf::from("bedroom.json".to_string())),
-                Station::from_json(&PathBuf::from("livingroom.json".to_string())),
-            ]))
+            .app_data(web::Data::new(Collector::from_json(&PathBuf::from(
+                "collectors.json".to_string(),
+            ))))
     })
     .bind("127.0.0.1:65535")
     .unwrap()
